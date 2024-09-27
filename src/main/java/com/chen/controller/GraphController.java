@@ -4,16 +4,13 @@ import com.chen.config.Response;
 import com.chen.pojo.Graph;
 import com.chen.service.GraphService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @CrossOrigin
-@RequestMapping("/api/graph")
+@RequestMapping("/graph")
 public class GraphController {
     @Autowired
     GraphService graphService;
@@ -24,5 +21,22 @@ public class GraphController {
         return Response.buildSuccess(graphs);
     }
 
+    @PostMapping("/createGraph")
+    public Response createGraph(@RequestBody Graph graph){
+        graphService.insertGraph(graph);
+        return Response.buildSuccess();
+    }
+
+    @PostMapping("/updateGraph")
+    public Response updateGraph(@RequestBody Graph graph){
+        graphService.updateGraph(graph);
+        return Response.buildSuccess();
+    }
+
+    @PostMapping("/deleteGraph")
+    public Response deleteGraph(@RequestBody Graph graph){
+        graphService.deleteGraph(graph);
+        return Response.buildSuccess();
+    }
 
 }

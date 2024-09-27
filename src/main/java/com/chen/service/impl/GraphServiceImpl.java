@@ -19,4 +19,19 @@ public class GraphServiceImpl extends ServiceImpl<GraphMapper, Graph>  implement
     public List<Graph> getAllGraph() {
         return graphMapper.selectList(null);
     }
+
+    @Override
+    public void insertGraph(Graph graph) {
+        graphMapper.insert(graph);
+    }
+
+    @Override
+    public void updateGraph(Graph graph) {
+        graphMapper.updateById(graph);
+    }
+
+    @Override
+    public void deleteGraph(Graph graph) {
+        graphMapper.deleteById(graph.getId());
+    }
 }

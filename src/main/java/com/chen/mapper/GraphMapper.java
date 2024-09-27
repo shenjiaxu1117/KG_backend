@@ -10,6 +10,5 @@ import java.util.List;
 @Mapper
 public interface GraphMapper extends BaseMapper<Graph> {
 
-    List<Graph> getAllGraph();
 
 }
