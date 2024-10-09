@@ -10,19 +10,27 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.web.bind.annotation.CrossOrigin;
 
-import java.io.Serializable;
-
-@TableName("graph")
+@TableName("file")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @CrossOrigin(origins = {"*"})
-public class Graph implements Serializable {
+public class FileInfo {
     @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
-    private String name;
-    private String build;
 
-    private String description;
+    private String name;
+
+    private String type;
+
+    private String size;
+
+    @TableField("updatetime")
+    private String updateTime;
+
+    @TableField("graphid")
+    private Integer graphId;
+
+
 }
