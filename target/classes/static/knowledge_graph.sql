@@ -104,4 +104,16 @@ CREATE TABLE `file` (
     CONSTRAINT fk_graph FOREIGN KEY (graphid) REFERENCES graph(id) ON DELETE CASCADE
 );
 
-
+-- 创建任务表
+CREATE TABLE `task` (
+    id INT PRIMARY KEY AUTO_INCREMENT, -- 自增主键
+    name VARCHAR(255) NOT NULL, -- 任务名称，支持中英文
+    source INT, -- 外键，引用file表的id
+    type TEXT, -- 任务类型，支持中英文
+    description TEXT, -- 任务描述，支持中英文
+    status ENUM('waiting', 'doing', 'success', 'error') NOT NULL, -- 任务状态
+    updatetime DATETIME NOT NULL, -- 更新时间
+    graphid INT,
+    CONSTRAINT fk_source FOREIGN KEY (source) REFERENCES file(id) ON DELETE CASCADE -- 外键约束，关联file表的id
+    CONSTRAINT fk_graphid FOREIGN KEY (graphid) REFERENCES graph(id) ON DELETE CASCADE;
+);

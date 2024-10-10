@@ -2,7 +2,6 @@ package com.chen.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.chen.pojo.FileInfo;
-import org.springframework.stereotype.Service;
 
 import java.util.List;
 
@@ -15,5 +14,5 @@ public interface FileService extends IService<FileInfo> {
 
     int deleteFile(int id);
 
-    FileInfo getFile(int id);
+    FileInfo getFileById(int id);
 }

@@ -43,7 +43,7 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, FileInfo> implement
     }
 
     @Override
-    public FileInfo getFile(int id) {
+    public FileInfo getFileById(int id) {
         return fileMapper.selectById(id);
     }
 }
