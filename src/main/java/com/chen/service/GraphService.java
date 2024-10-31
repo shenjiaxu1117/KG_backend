@@ -16,4 +16,5 @@ public interface GraphService extends IService<Graph> {
     void updateGraph(Graph graph);
 
     void deleteGraph(Graph graph);
+
 }

@@ -22,9 +22,16 @@ public class TaskController {
     @Autowired
     FileService fileService;
 
+
     @GetMapping("/createTask")
     public Response createTask(@RequestParam(value = "name") String name,@RequestParam(value = "fileId") int source,@RequestParam(value = "description") String description,@RequestParam(value = "graphId") int graphId){
+//        List<String> fileNameList=new ArrayList<>();
+//        for(int i=0;i<source.size();i++){
+//            String fileName=fileService.getFileById(source.get(i)).getName();
+//            fileNameList.add(fileName);
+//        }
         String fileName=fileService.getFileById(source).getName();
+//        String type= Utils.fileListTypeAnalysis(fileNameList);
         String type= Utils.fileTypeAnalysis(fileName);
         String currentTime = Utils.getCurTime();
         taskService.createTask(name,source,type,description, TaskStatus.waiting,currentTime,graphId);
@@ -40,7 +47,13 @@ public class TaskController {
     @GetMapping("/updateTask")
     public Response updateTask(@RequestParam(value = "id") int id, @RequestParam(value = "name") String name,@RequestParam(value = "fileId") int source,@RequestParam(value = "description") String description,@RequestParam(value = "graphId") int graphId){
         Task origin=taskService.getTaskById(id);
+//        List<String> fileNameList=new ArrayList<>();
+//        for(int i=0;i<source.size();i++){
+//            String fileName=fileService.getFileById(source.get(i)).getName();
+//            fileNameList.add(fileName);
+//        }
         String fileName=fileService.getFileById(source).getName();
+//        String type= Utils.fileListTypeAnalysis(fileNameList);
         String type= Utils.fileTypeAnalysis(fileName);
         String currentTime = Utils.getCurTime();
         if (origin.getSource()==source){

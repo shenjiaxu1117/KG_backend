@@ -3,6 +3,7 @@ package com.chen.controller;
 import cn.hutool.core.io.FileUtil;
 import com.chen.config.Response;
 import com.chen.config.Utils;
+import com.chen.enums.FileCategory;
 import com.chen.pojo.FileInfo;
 import com.chen.service.FileService;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,8 +34,9 @@ public class FileController {
     @Value("${files.upload.path}")
     private String fileUploadPath;
 
+    @CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*", allowCredentials = "true")
     @PostMapping("uploadFile")
-    public Response uploadFile(@RequestParam("file") MultipartFile file,@RequestParam("graphID") int graphId) throws IOException {
+    public Response uploadFile(@RequestParam("file") MultipartFile file, @RequestParam("graphID") int graphId, @RequestParam("category") FileCategory category) throws IOException {
         //获取文件原始名称
         String originalFilename = file.getOriginalFilename();
         System.out.println("originalFilename: "+originalFilename);
@@ -68,10 +70,10 @@ public class FileController {
 //                .toUriString();
 //        System.out.println("fileDownloadUri: "+fileDownloadUri);
 
-        if (fileService.checkFile(originalFilename,type,size,graphId)){
+        if (fileService.checkFile(originalFilename,type,size,graphId,category)){
             return Response.buildFailure("文件已存在！");
         }else {
-            fileService.saveFile(originalFilename,type,size,formattedTime,graphId);
+            fileService.saveFile(originalFilename,type,size,formattedTime,graphId,category);
             //将临时文件转存到指定磁盘位置
             file.transferTo(new File(System.getProperty("user.dir") + fileUploadPath + originalFilename));
             //file.transferTo(new File(System.getProperty("user.dir") + "/src/main/resources/SentStrength_Data/input.txt"));
@@ -97,9 +99,13 @@ public class FileController {
     }
 
     @GetMapping("/findFile")
-    public Response findFileById(@RequestParam("fileId") int id){
-        FileInfo file=fileService.getFileById(id);
-        return Response.buildSuccess(file);
+    public Response findFileById(@RequestParam("fileId") int[] id){
+        List<FileInfo> fileList = new ArrayList<>();
+        for(int i=0;i<id.length;i++){
+            FileInfo file=fileService.getFileById(id[i]);
+            fileList.add(file);
+        }
+        return Response.buildSuccess(fileList);
     }
 
     /**

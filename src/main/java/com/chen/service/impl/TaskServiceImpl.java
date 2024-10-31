@@ -58,5 +58,12 @@ public class TaskServiceImpl extends ServiceImpl<TaskMapper, Task> implements Ta
     public Task getTaskById(int taskId) {
         return taskMapper.selectById(taskId);
     }
+
+    @Override
+    public void updateTaskStatus(int taskId, TaskStatus status) {
+        Task task = taskMapper.selectById(taskId);
+        task.setStatus(status);
+        taskMapper.updateById(task);
+    }
 }
 

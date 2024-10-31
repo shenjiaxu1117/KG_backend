@@ -1,6 +1,7 @@
 package com.chen.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.chen.enums.FileCategory;
 import com.chen.mapper.FileMapper;
 import com.chen.pojo.FileInfo;
 import com.chen.service.FileService;
@@ -16,20 +17,21 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, FileInfo> implement
     FileMapper fileMapper;
 
     @Override
-    public void saveFile(String name,String type,String size,String updateTime,int graphId) {
+    public void saveFile(String name, String type, String size, String updateTime, int graphId, FileCategory category) {
         FileInfo file = new FileInfo();
         file.setName(name);
         file.setType(type);
         file.setSize(size);
         file.setUpdateTime(updateTime);
         file.setGraphId(graphId);
+        file.setCategory(category);
 
         fileMapper.insert(file);
     }
 
     @Override
-    public boolean checkFile(String name,String type,String size,int graphId){
-        return fileMapper.existsFile(name,type,size,graphId);
+    public boolean checkFile(String name,String type,String size,int graphId,FileCategory category){
+        return fileMapper.existsFile(name,type,size,graphId,category);
     }
 
     @Override
