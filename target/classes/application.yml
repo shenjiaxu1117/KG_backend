@@ -2,6 +2,11 @@ server:
   port: 9090
 
 spring:
+  data:
+    neo4j:
+      uri: bolt://localhost:7687 #注意是bolt的端口
+      username: neo4j
+      password: 12345678
   datasource:
     druid:
       driver-class-name: com.mysql.cj.jdbc.Driver
@@ -27,3 +32,7 @@ mybatis:
 files:
   upload:
     path: /src/main/resources/static/files/
+  csv:
+    path: /src/main/resources/static/csv/
+  neo4j:
+    path: /Applications/neo4j-community-5.25.1/import/

@@ -1,5 +1,6 @@
 package com.chen.controller;
 
+import com.chen.config.CsvGenerator;
 import com.chen.config.Response;
 import com.chen.config.Utils;
 import com.chen.enums.FileCategory;
@@ -9,8 +10,19 @@ import com.chen.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.stereotype.Service;
+
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.Session;
+import org.neo4j.driver.Transaction;
+import org.neo4j.driver.internal.InternalNode;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -258,4 +270,122 @@ public class ConstructionController {
         return Response.buildSuccess(itemRelation);
     }
 
+    @Value("${files.csv.path}")
+    private String csvPath;
+
+    @Value("${files.neo4j.path}")
+    private String neo4jPath;
+
+    @Autowired
+    private Driver driver;  // Neo4j 驱动
+
+    /**
+     * 将指定图谱中的实例关系和属性存储为csv文件，导入生成neo4j图数据
+     * @param graphId 图谱索引
+     * @return 生成图谱
+     * @throws IOException
+     *
+     * 表格分别命名为[图谱id]item/property/relation.csv，分别表示实例-实体表，实例-属性表，实例关系表
+     *
+     * ========== 表结构 ==========
+     * item表：
+     * node_name,label_name,name
+     * 实例id，实例对应的实体名称，实例名称
+     *
+     * relation表：
+     * head_node_name,relation,tail_node_name
+     * 头实例id，关系名称，尾实例id
+     *
+     * property表：
+     * //TODO：
+     *
+     *
+     * ========== 配置 ==========
+     * 下载安装neo4j并安装apoc插件
+     * 修改 /conf/neo4j.conf:# server.directories.import=import
+     * 在 LOAD CSV 时使用外部文件
+     */
+    @GetMapping("/generateGraph")
+    public Response generateGraph(@RequestParam("graphId") int graphId) throws IOException {
+        //实例-关系三元组
+        List<ItemTriple> tripleList=constructionService.getItemRelationTriple(graphId);
+        List<List<String>> itemEntity=new ArrayList<>();
+        List<List<String>> itemRelation=new ArrayList<>();
+        List<List<String>> itemProperty=new ArrayList<>();
+        for (ItemTriple itemTriple:tripleList){
+            Item headItem=itemService.getItemByItemId(itemTriple.getStartItem());
+            Entity headEntity=entityService.getEntityById(headItem.getEntityId());
+            Item tailItem=itemService.getItemByItemId(itemTriple.getEndItem());
+            Entity tailEntity=entityService.getEntityById(tailItem.getEntityId());
+            Relation relation=relationService.getRelationById(itemTriple.getRelationId());
+            List<String> eachHeadItem=new ArrayList<>();
+            List<String> eachTailItem=new ArrayList<>();
+            List<String> eachItemRelation=new ArrayList<>();
+            eachHeadItem.add(headItem.getId()+"");
+            eachHeadItem.add(headEntity.getType());
+            eachHeadItem.add(headItem.getName());
+            eachTailItem.add(tailItem.getId()+"");
+            eachTailItem.add(tailEntity.getType());
+            eachTailItem.add(tailItem.getName());
+            if (!itemEntity.contains(eachHeadItem)){
+                itemEntity.add(eachHeadItem);
+            }
+            if (!itemEntity.contains(eachTailItem)){
+                itemEntity.add(eachTailItem);
+            }
+            eachItemRelation.add(headItem.getId()+"");
+            eachItemRelation.add(relation.getName());
+            eachItemRelation.add(tailItem.getId()+"");
+            itemRelation.add(eachItemRelation);
+            //TODO:实例-属性
+        }
+        System.out.println(itemEntity);
+        System.out.println(itemRelation);
+        System.out.println(itemProperty);
+        String path = System.getProperty("user.dir") + csvPath;
+        String csv_itemEntity=graphId+"item.csv";
+        String csv_relation=graphId+"relation.csv";
+        String csv_itemProperty=graphId+"property.csv";
+        //生成csv
+        CsvGenerator.generateCsv(List.of("node_name", "label_name", "name"),itemEntity,path,csv_itemEntity);
+        CsvGenerator.generateCsv(List.of("head_node_name", "relation", "tail_node_name"),itemRelation,path,csv_relation);
+        CsvGenerator.generateCsv(List.of("node_name", "label_name", "property_name", "property_value"),itemProperty,path,csv_itemProperty);
+//        Files.copy(Paths.get(path+csv_itemEntity), Paths.get(neo4jPath+csv_itemEntity), StandardCopyOption.REPLACE_EXISTING);
+//        Files.copy(Paths.get(path+csv_relation), Paths.get(neo4jPath+csv_relation), StandardCopyOption.REPLACE_EXISTING);
+//        Files.copy(Paths.get(path+csv_itemProperty), Paths.get(neo4jPath+csv_itemProperty), StandardCopyOption.REPLACE_EXISTING);
+        //neo4j读取csv
+        try (Session session = driver.session()) {
+            String cypherQuery1 = String.format(
+                    "LOAD CSV WITH HEADERS FROM 'file:///%s' AS row " +
+                            "CALL apoc.create.node([row.label_name], {node_name: row.node_name, name: row.name}) YIELD node " +
+                            "RETURN node",
+                    URLEncoder.encode(path + csv_itemEntity, "UTF-8")
+            );
+            String cypherQuery2 = String.format(
+                    "LOAD CSV WITH HEADERS FROM 'file:///%s' AS row " +
+                            "MATCH (head {node_name: row.head_node_name}), (tail {node_name: row.tail_node_name}) " +
+                            "CALL apoc.create.relationship(head, row.relation, {}, tail) YIELD rel " +
+                            "RETURN head, tail, rel",
+                    URLEncoder.encode(path + csv_relation, "UTF-8")
+            );
+            //:TODO:cypherQuery3未debug
+            String cypherQuery3 = String.format(
+                    "LOAD CSV WITH HEADERS FROM 'file:///%s' AS row " +
+                            "MATCH (n:row.label_name {node_name: row.node_name})"+
+                            "SET n[row.property_name] = row.property_value",
+                    URLEncoder.encode(neo4jPath + csv_itemProperty, "UTF-8")
+            );
+            try (Transaction tx = session.beginTransaction()) {
+                tx.run(cypherQuery1);
+                tx.run(cypherQuery2);
+//                tx.run(cypherQuery3);
+                tx.commit();
+            }
+        }catch (Exception e) {
+            // Log the exception or handle it without causing recursion
+            e.printStackTrace();
+        }
+//        driver.close();
+        return Response.buildSuccess();
+    }
 }

@@ -1,0 +1,7 @@
+head_node_name,relation,tail_node_name
+1,生产自,7
+2,生产自,7
+5,生产自,8
+7,制造,1
+7,制造,2
+8,制造,5

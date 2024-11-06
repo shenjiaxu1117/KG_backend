@@ -81,6 +81,11 @@ public class ConstructionServiceImpl implements ConstructionService {
         }
     }
 
+    /**
+     * 获取实例-关系三元组
+     * @param graphId 图谱索引
+     * @return 实例-关系三元组列表
+     */
     @Override
     public List<ItemTriple> getItemRelationTriple(int graphId) {
         return constructionMapper.findAllItemRelationByGraphId(graphId);

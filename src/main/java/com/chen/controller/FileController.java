@@ -18,6 +18,9 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -141,18 +144,20 @@ public class FileController {
         }else return Response.buildFailure(idListNotDelete);
     }
 
-//    @GetMapping("/fetchFileContent")
-//    public Response fetchFile(@RequestParam("id") int fileId){
-//        FileInfo fileInfo=fileService.getFile(fileId);
-//        Path path = Paths.get(System.getProperty("user.dir") + fileUploadPath + fileInfo.getName());
+    @GetMapping("/fetchFileContent")
+    public ResponseEntity<byte[]> fetchFile(@RequestParam("id") int fileId) throws IOException {
+        FileInfo fileInfo=fileService.getFileById(fileId);
+        Path path = Paths.get(System.getProperty("user.dir") + fileUploadPath + fileInfo.getName());
+        byte[] fileContent = Files.readAllBytes(path);
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).body(fileContent);
 //        try {
 //            Resource resource = new UrlResource(path.toUri());
 //            System.out.println(path.toUri());
 //            System.out.println("resource: "+resource);
-////            InputStream inputStream = resource.getInputStream();
-////            // 读取文件内容到字节数组
-////            byte[] data = StreamUtils.copyToByteArray(inputStream);
-//            // 设置下载响应头
+//            InputStream inputStream = resource.getInputStream();
+//            // 读取文件内容到字节数组
+//            byte[] data = StreamUtils.copyToByteArray(inputStream);
+            // 设置下载响应头
 //            HttpHeaders headers = new HttpHeaders();
 //            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"");
 //            // 返回自定义的 Response
@@ -160,11 +165,11 @@ public class FileController {
 //        } catch (MalformedURLException e) {
 //            e.printStackTrace(); // 打印错误信息
 //        }
-////        catch (IOException e) {
-////            e.printStackTrace(); // 打印文件读取错误
+//        catch (IOException e) {
+//            e.printStackTrace(); // 打印文件读取错误
 ////        }
 //        return Response.buildFailure();
-//    }
+    }
 
     @GetMapping("/downloadFile")
     public ResponseEntity<Resource> downloadFile(@RequestParam("id") int id){
