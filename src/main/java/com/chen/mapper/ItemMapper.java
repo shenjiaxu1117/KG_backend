@@ -17,4 +17,7 @@ public interface ItemMapper extends BaseMapper<Item> {
 
     @Select("SELECT * FROM item WHERE name = #{name} AND entityid = #{entityId}")
     Item getItemByNameAndEntity(String name,int entityId);
+
+    @Select("SELECT * FROM item WHERE entityid IN (SELECT id FROM entity WHERE graphid = #{graphId})")
+    List<Item> getItemsByGraphId(int graphId);
 }

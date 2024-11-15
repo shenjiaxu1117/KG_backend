@@ -13,4 +13,6 @@ public interface ItemService extends IService<Item> {
     Item getItemByItemNameAndEntityId(String itemName,int entityId);
 
     Item getItemByItemId(int id);
+
+    List<Item> getItemByGraphId(int graphId);
 }

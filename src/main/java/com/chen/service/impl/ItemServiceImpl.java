@@ -40,4 +40,9 @@ public class ItemServiceImpl extends ServiceImpl<ItemMapper, Item> implements It
     public Item getItemByItemId(int id) {
         return itemMapper.selectById(id);
     }
+
+    @Override
+    public List<Item> getItemByGraphId(int graphId) {
+        return itemMapper.getItemsByGraphId(graphId);
+    }
 }

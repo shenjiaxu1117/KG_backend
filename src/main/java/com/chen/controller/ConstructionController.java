@@ -308,40 +308,34 @@ public class ConstructionController {
     @GetMapping("/generateGraph")
     public Response generateGraph(@RequestParam("graphId") int graphId) throws IOException {
         //实例-关系三元组
-        List<ItemTriple> tripleList=constructionService.getItemRelationTriple(graphId);
+        //TODO：逻辑有问题，没有形成关系的实例没进数据库
+        List<Item> itemList=itemService.getItemByGraphId(graphId);
         List<List<String>> itemEntity=new ArrayList<>();
+        for (Item item:itemList){
+            List<String> eachItem=new ArrayList<>();
+            Entity entity=entityService.getEntityById(item.getEntityId());
+            eachItem.add(item.getId()+"");
+            eachItem.add(entity.getType());
+            eachItem.add(item.getName());
+            itemEntity.add(eachItem);
+        }
+        List<ItemTriple> tripleList=constructionService.getItemRelationTriple(graphId);
         List<List<String>> itemRelation=new ArrayList<>();
         List<List<String>> itemProperty=new ArrayList<>();
         for (ItemTriple itemTriple:tripleList){
             Item headItem=itemService.getItemByItemId(itemTriple.getStartItem());
-            Entity headEntity=entityService.getEntityById(headItem.getEntityId());
             Item tailItem=itemService.getItemByItemId(itemTriple.getEndItem());
-            Entity tailEntity=entityService.getEntityById(tailItem.getEntityId());
             Relation relation=relationService.getRelationById(itemTriple.getRelationId());
-            List<String> eachHeadItem=new ArrayList<>();
-            List<String> eachTailItem=new ArrayList<>();
             List<String> eachItemRelation=new ArrayList<>();
-            eachHeadItem.add(headItem.getId()+"");
-            eachHeadItem.add(headEntity.getType());
-            eachHeadItem.add(headItem.getName());
-            eachTailItem.add(tailItem.getId()+"");
-            eachTailItem.add(tailEntity.getType());
-            eachTailItem.add(tailItem.getName());
-            if (!itemEntity.contains(eachHeadItem)){
-                itemEntity.add(eachHeadItem);
-            }
-            if (!itemEntity.contains(eachTailItem)){
-                itemEntity.add(eachTailItem);
-            }
             eachItemRelation.add(headItem.getId()+"");
             eachItemRelation.add(relation.getName());
             eachItemRelation.add(tailItem.getId()+"");
             itemRelation.add(eachItemRelation);
             //TODO:实例-属性
         }
-        System.out.println(itemEntity);
-        System.out.println(itemRelation);
-        System.out.println(itemProperty);
+        System.out.println("=====itemEntity=====\n"+itemEntity);
+        System.out.println("=====itemRelation=====\n"+itemRelation);
+        System.out.println("=====itemProperty=====\n"+itemProperty);
         String path = System.getProperty("user.dir") + csvPath;
         String csv_itemEntity=graphId+"item.csv";
         String csv_relation=graphId+"relation.csv";
@@ -355,6 +349,7 @@ public class ConstructionController {
 //        Files.copy(Paths.get(path+csv_itemProperty), Paths.get(neo4jPath+csv_itemProperty), StandardCopyOption.REPLACE_EXISTING);
         //neo4j读取csv
         try (Session session = driver.session()) {
+            String clearQuery="MATCH (n) DETACH DELETE n";
             String cypherQuery1 = String.format(
                     "LOAD CSV WITH HEADERS FROM 'file:///%s' AS row " +
                             "CALL apoc.create.node([row.label_name], {node_name: row.node_name, name: row.name}) YIELD node " +
@@ -376,6 +371,7 @@ public class ConstructionController {
                     URLEncoder.encode(neo4jPath + csv_itemProperty, "UTF-8")
             );
             try (Transaction tx = session.beginTransaction()) {
+                tx.run(clearQuery);
                 tx.run(cypherQuery1);
                 tx.run(cypherQuery2);
 //                tx.run(cypherQuery3);

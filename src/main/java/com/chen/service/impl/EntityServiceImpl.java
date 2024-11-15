@@ -17,11 +17,11 @@ public class EntityServiceImpl extends ServiceImpl<EntityMapper, Entity> impleme
     @Override
     public String createEntity(String name, String color,int graphId) {
         //保证在每个图谱中的实体名称和颜色值唯一
-        boolean isExistType = entityMapper.existName(name,graphId);
-        boolean isExistColor = entityMapper.existColor(color,graphId);
-        if (isExistType){
+        int isExistType = entityMapper.existName(name,graphId);
+        int isExistColor = entityMapper.existColor(color,graphId);
+        if (isExistType>0){
             return "实体名称已存在！";
-        }else if (isExistColor){
+        }else if (isExistColor>0){
             return "实体颜色已存在！";
         }else{
             Entity entity = new Entity();
@@ -35,15 +35,16 @@ public class EntityServiceImpl extends ServiceImpl<EntityMapper, Entity> impleme
 
     @Override
     public String updateEntity(int id,String name,String color) {
+        //TODO：只改颜色会显示名字已存在
         int graphId= entityMapper.searchGraphIdByEntityId(id);
-        boolean isExistType = entityMapper.existName(name,graphId);
-        boolean isExistColor = entityMapper.existColor(color,graphId);
-        if (isExistType){
+        Entity entity = entityMapper.selectById(id);
+        int isExistType = entityMapper.existName(name,graphId);
+        int isExistColor = entityMapper.existColor(color,graphId);
+        if (isExistType>0&&(!entity.getType().equals(name))){
             return "实体名称已存在！";
-        }else if (isExistColor){
+        }else if (isExistColor>0&&(!entity.getColor().equals(color))){
             return "实体颜色已存在！";
         }else{
-            Entity entity = entityMapper.selectById(id);
             entity.setType(name);
             entity.setColor(color);
             entityMapper.updateById(entity);

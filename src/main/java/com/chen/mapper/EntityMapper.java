@@ -9,11 +9,11 @@ import java.util.List;
 
 @Mapper
 public interface EntityMapper extends BaseMapper<Entity> {
-    @Select("SELECT COUNT(*) > 0 FROM entity WHERE type = #{name} AND graphid = #{graphId}")
-    boolean existName(String name,int graphId);
+    @Select("SELECT COUNT(*) FROM entity WHERE type = #{name} AND graphid = #{graphId}")
+    int existName(String name,int graphId);
 
-    @Select("SELECT COUNT(*) > 0 FROM entity WHERE color = #{color} AND graphid = #{graphId}")
-    boolean existColor(String color,int graphId);
+    @Select("SELECT COUNT(*) FROM entity WHERE color = #{color} AND graphid = #{graphId}")
+    int existColor(String color,int graphId);
 
     @Select("SELECT COUNT(*) > 0 FROM entity WHERE type = #{name} AND color = #{color} AND graphid = #{graphId}")
     boolean existTypeOrColor(String type,String color,int graphId);
