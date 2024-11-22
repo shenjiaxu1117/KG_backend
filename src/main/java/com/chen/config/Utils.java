@@ -132,7 +132,7 @@ public class Utils {
                     Row row = sheet.getRow(rowIndex);
                     if (row != null) {
                         Cell cell = row.getCell(colIndex);
-                        if (cell != null) {
+                        if (cell != null && (!columnData.contains(cell.toString()))) {
                             columnData.add(cell.toString());  // 将单元格内容加入列表
                         }
                     }
@@ -178,7 +178,6 @@ public class Utils {
                     headerIndexMap.put(headerName, colIndex);
                 }
             }
-
             // 根据列名获取对应的列索引
             Integer headEntityIndex = headerIndexMap.get("头实体");
             Integer headItemIndex = headerIndexMap.get("头实例");
@@ -191,12 +190,15 @@ public class Utils {
             System.out.println("尾实体:"+tailEntityIndex);
             System.out.println("尾实例:"+tailItemIndex);
 
+            if (headEntityIndex==null||headItemIndex==null||relationIndex==null||tailItemIndex==null||tailEntityIndex==null){
+                return null;
+            }
+
             // 逐行读取数据，跳过表头行
             for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                 Row row = sheet.getRow(rowIndex);
                 if (row != null) {
                     // 根据表头列索引读取对应数据
-
                     String headEntity = getCellValue(row.getCell(headEntityIndex));
                     String headItem = getCellValue(row.getCell(headItemIndex));
                     String relation = getCellValue(row.getCell(relationIndex));
@@ -209,10 +211,14 @@ public class Utils {
                     map.put("relation",relation);
                     map.put("tailEntity", tailEntity);
                     map.put("tailItem",tailItem);
+
                     relationList.add(map);
                 }
             }
-            System.out.println(relationList);
+            System.out.println("==========relationList==========");
+            for (Map<String, String> stringStringMap : relationList) {
+                System.out.println(stringStringMap);
+            }
         }
         return relationList;
     }
@@ -258,6 +264,10 @@ public class Utils {
                 System.out.println("属性名:"+propertyName);
                 System.out.println("属性值:"+propertyValue);
 
+                if (entityIndex==null||itemIndex==null||propertyName==null||propertyValue==null){
+                    return null;
+                }
+
                 // 逐行读取数据，跳过表头行
                 for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                     Row row = sheet.getRow(rowIndex);
@@ -277,7 +287,10 @@ public class Utils {
                         property.add(map);
                     }
                 }
-                System.out.println(property);
+                System.out.println("==========property==========");
+                for (Map<String, String> stringStringMap : property) {
+                    System.out.println(stringStringMap);
+                }
             }
         return property;
     }
@@ -308,6 +321,8 @@ public class Utils {
     }
 
     public static void main(String[] args) throws IOException {
-        readItemPropertyExcel2List("/Users/shenjiaxu/Desktop/实验室/知识图谱/KG_backend/src/main/resources/static/templateFile/template_property.xlsx");
+        readEntityItemExcel2Map("/Users/shenjiaxu/Desktop/实验室/知识图谱/数据集/司法/副本patch1-entity.xlsx");
+        //readRelationItemExcel2List("/Users/shenjiaxu/Desktop/实验室/知识图谱/数据集/司法/副本patch1-relation.xlsx");
+        //readItemPropertyExcel2List("/Users/shenjiaxu/Desktop/实验室/知识图谱/KG_backend/src/main/resources/static/templateFile/template_property.xlsx");
     }
 }

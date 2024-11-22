@@ -203,6 +203,9 @@ public class ConstructionController {
         }else if (file.getCategory().equals(FileCategory.relation)){
             //处理实例-关系表格
             List<Map<String,String>> relationItemList=Utils.readRelationItemExcel2List(filePath);
+            if (relationItemList==null){
+                return Response.buildFailure("格式错误！请参照模版文件");
+            }
             //获取关系设计中定义的实体和关系
             List<EntityTriple> tripleList=constructionService.getAllTripleId(task.getGraphId());
             for (Map<String,String> itemMap : relationItemList) {
@@ -219,6 +222,9 @@ public class ConstructionController {
         }else{
             //处理实例-属性表格
             List<Map<String,String>> propertyMapList=Utils.readItemPropertyExcel2List(filePath);
+            if (propertyMapList==null){
+                return Response.buildFailure("格式错误！请参照模版文件");
+            }
             for (Map<String,String> itemMap : propertyMapList) {
                 Entity entity=entityService.getEntityByName(itemMap.get("entityName"),task.getGraphId());
                 if (entity!=null){
