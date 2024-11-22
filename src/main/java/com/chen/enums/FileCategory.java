@@ -1,5 +1,5 @@
 package com.chen.enums;
 
 public enum FileCategory {
-    entity,relation,
+    entity,relation,property,
 }

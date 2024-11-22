@@ -90,4 +90,22 @@ public class ConstructionServiceImpl implements ConstructionService {
     public List<ItemTriple> getItemRelationTriple(int graphId) {
         return constructionMapper.findAllItemRelationByGraphId(graphId);
     }
+
+    @Override
+    public void insertItemProperty(int itemId, int propertyId, String value) {
+        boolean isExist=constructionMapper.existItemProperty(itemId,propertyId);
+        if(!isExist){
+            constructionMapper.insert2ItemProperty(itemId,propertyId,value);
+        }
+    }
+
+    @Override
+    public List<Integer> getPropertyIdListByItemId(int itemId) {
+        return constructionMapper.getPropertyByItemId(itemId);
+    }
+
+    @Override
+    public List<Map<String, String>> getPropertyNameAndValue(int itemId) {
+        return constructionMapper.getPropertyNameAndValueByItemId(itemId);
+    }
 }

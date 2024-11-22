@@ -36,11 +36,13 @@ CREATE TABLE item (
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- 创建属性表
-CREATE TABLE `property` (
+CREATE TABLE property (
     id INT AUTO_INCREMENT PRIMARY KEY,   -- id 是自增主键，唯一标识
     name VARCHAR(255) NOT NULL,          -- name 是字符串，不允许为空，支持中文
-    type VARCHAR(255) NOT NULL,          -- type 是字符串，不允许为空，支持中文
+    type ENUM('string', 'time', 'value') NOT NULL,          -- type 是字符串，不允许为空，支持中文
     unit VARCHAR(255) NOT NULL           -- unit 是字符串，不允许为空，支持中文
+    entityid INT NOT NULL,
+    CONSTRAINT fk_entityid FOREIGN KEY (entityid) REFERENCES entity(id) ON DELETE CASCADE ON UPDATE CASCADE;
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 
@@ -65,21 +67,13 @@ CREATE TABLE `relation_item` (
 );
 
 CREATE TABLE `item_property` (
+    id INT AUTO_INCREMENT PRIMARY KEY,
     itemid INT NOT NULL,                  -- itemid 是 int 类型，外键，引用 item 表的 id
     propertyid INT NOT NULL,              -- propertyid 是 int 类型，外键，引用 property 表的 id
-    value VARCHAR(255) NOT NULL,          -- value 是字符串，支持中文
-    PRIMARY KEY (itemid, propertyid),     -- 定义联合主键 (itemid, propertyid)
+    propertyvalue VARCHAR(255) NOT NULL,          -- value 是字符串，支持中文
     CONSTRAINT fk_item FOREIGN KEY (itemid) REFERENCES item(id) ON DELETE CASCADE ON UPDATE CASCADE,         -- 外键，引用 item 表的 id
     CONSTRAINT fk_property FOREIGN KEY (propertyid) REFERENCES property(id) ON DELETE CASCADE ON UPDATE CASCADE -- 外键，引用 property 表的 id
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-CREATE TABLE `entity_property` (
-    entityid INT NOT NULL,                  -- itemid 是 int 类型，外键，引用 item 表的 id
-    propertyid INT NOT NULL,              -- propertyid 是 int 类型，外键，引用 property 表的 id
-    PRIMARY KEY (entityid, propertyid),     -- 定义联合主键 (itemid, propertyid)
-    CONSTRAINT fk_entity_property_entity FOREIGN KEY (entityid) REFERENCES entity(id) ON DELETE CASCADE ON UPDATE CASCADE,         -- 外键，引用 item 表的 id
-    CONSTRAINT fk_entity_property_property FOREIGN KEY (propertyid) REFERENCES property(id) ON DELETE CASCADE ON UPDATE CASCADE -- 外键，引用 property 表的 id
-);
 
 -- 创建文件表
 CREATE TABLE `file` (
@@ -89,7 +83,7 @@ CREATE TABLE `file` (
     size VARCHAR(50) NOT NULL,            -- size 表示文件大小
     updatetime DATETIME NOT NULL,         -- updatetime 是时间格式，不允许为空
     graphid INT NOT NULL,
-    category ENUM('relation', 'entity') NOT NULL,
+    category ENUM('relation', 'entity', 'property') NOT NULL,
     CONSTRAINT fk_graph FOREIGN KEY (graphid) REFERENCES graph(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 

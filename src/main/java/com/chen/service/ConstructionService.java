@@ -18,4 +18,10 @@ public interface ConstructionService {
     void insertItemRelationTriple(int head,int tail,int relation);
 
     List<ItemTriple> getItemRelationTriple(int graphId);
+
+    void insertItemProperty(int itemId,int propertyId,String value);
+
+    List<Integer> getPropertyIdListByItemId(int itemId);
+
+    List<Map<String, String>> getPropertyNameAndValue(int itemId);
 }

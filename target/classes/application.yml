@@ -36,3 +36,5 @@ files:
     path: /src/main/resources/static/csv/
   neo4j:
     path: /Applications/neo4j-community-5.25.1/import/
+  template:
+    path: /src/main/resources/static/templateFile/

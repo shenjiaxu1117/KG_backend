@@ -1,15 +1,13 @@
 package com.chen.config;
 
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -110,7 +108,7 @@ public class Utils {
      *     实体2：[实例1，实例2，实例3...],
      *     ...
      * }
-     * @throws IOException
+     * @throws IOException 异常
      */
     public static Map<String, List<String>> readEntityItemExcel2Map(String filePath) throws IOException {
 //        String filePath = "/Users/shenjiaxu/Desktop/实验室/知识图谱/KG_backend/src/main/resources/static/files/测试1.xlsx";  // 替换为你的文件路径
@@ -159,14 +157,14 @@ public class Utils {
      *      },
      *      ...
      * ]
-     * @throws IOException
+     * @throws IOException 异常
      */
     public static List<Map<String,String>> readRelationItemExcel2List(String filePath) throws IOException {
 //        String filePath="/Users/shenjiaxu/Desktop/实验室/知识图谱/test/relation.xlsx";
         List<Map<String,String>> relationList=new ArrayList<>();
 
         try (FileInputStream fis = new FileInputStream(new File(filePath));
-             Workbook workbook = new XSSFWorkbook(fis)) {
+            Workbook workbook = new XSSFWorkbook(fis)) {
 
             Sheet sheet = workbook.getSheetAt(0); // 获取第一个工作表
 
@@ -198,11 +196,12 @@ public class Utils {
                 Row row = sheet.getRow(rowIndex);
                 if (row != null) {
                     // 根据表头列索引读取对应数据
-                    String headEntity = row.getCell(headEntityIndex)!= null ? row.getCell(headEntityIndex).toString() : "";
-                    String headItem = row.getCell(headItemIndex)!= null ? row.getCell(headItemIndex).toString() : "";
-                    String relation = row.getCell(relationIndex)!= null ? row.getCell(relationIndex).toString() : "";
-                    String tailItem = row.getCell(tailItemIndex)!= null ? row.getCell(tailItemIndex).toString() : "";
-                    String tailEntity = row.getCell(tailEntityIndex)!= null ? row.getCell(tailEntityIndex).toString() : "";
+
+                    String headEntity = getCellValue(row.getCell(headEntityIndex));
+                    String headItem = getCellValue(row.getCell(headItemIndex));
+                    String relation = getCellValue(row.getCell(relationIndex));
+                    String tailItem = getCellValue(row.getCell(tailItemIndex));
+                    String tailEntity = getCellValue(row.getCell(tailEntityIndex));
 
                     Map<String,String> map=new HashMap<>();
                     map.put("headEntity", headEntity);
@@ -216,5 +215,99 @@ public class Utils {
             System.out.println(relationList);
         }
         return relationList;
+    }
+
+    /**
+     * 读取实例-属性的Excel文件
+     * @param filePath 文件路径
+     * @return 格式如下
+     * [
+     *    {
+     *        entityName: 实体名称
+     *        itemName: 实例名称
+     *        propertyName: 属性名
+     *        propertyValue: 属性值
+     *    },
+     *    ...
+     * ]
+     * @throws IOException 异常
+     */
+    public static List<Map<String,String>> readItemPropertyExcel2List(String filePath) throws IOException {
+        List<Map<String,String>> property=new ArrayList<>();
+        try (FileInputStream fis = new FileInputStream(new File(filePath));
+            Workbook workbook = new XSSFWorkbook(fis)) {
+                Sheet sheet = workbook.getSheetAt(0); // 获取第一个工作表
+
+                // 读取表头行，记录每个列名对应的索引
+                Row headerRow = sheet.getRow(0);
+                Map<String, Integer> headerIndexMap = new HashMap<>();
+                for (int colIndex = 0; colIndex < headerRow.getLastCellNum(); colIndex++) {
+                    Cell cell = headerRow.getCell(colIndex);
+                    if (cell != null) {
+                        String headerName = cell.getStringCellValue();
+                        headerIndexMap.put(headerName, colIndex);
+                    }
+                }
+                // 根据列名获取对应的列索引
+                Integer entityIndex = headerIndexMap.get("实体");
+                Integer itemIndex = headerIndexMap.get("实例");
+                Integer propertyName = headerIndexMap.get("属性名");
+                Integer propertyValue = headerIndexMap.get("属性值");
+                System.out.println("实体:"+entityIndex);
+                System.out.println("实例:"+itemIndex);
+                System.out.println("属性名:"+propertyName);
+                System.out.println("属性值:"+propertyValue);
+
+                // 逐行读取数据，跳过表头行
+                for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+                    Row row = sheet.getRow(rowIndex);
+                    if (row != null) {
+                        // 根据表头列索引读取对应数据
+                        String entity = getCellValue(row.getCell(entityIndex));
+                        String item = getCellValue(row.getCell(itemIndex));
+                        String name = getCellValue(row.getCell(propertyName));
+                        String value = getCellValue(row.getCell(propertyValue));
+
+                        Map<String,String> map=new HashMap<>();
+                        map.put("entityName", entity);
+                        map.put("itemName",item);
+                        map.put("propertyName",name);
+                        map.put("propertyValue", value);
+
+                        property.add(map);
+                    }
+                }
+                System.out.println(property);
+            }
+        return property;
+    }
+
+    // 工具方法：根据单元格类型获取值
+    private static String getCellValue(Cell cell) {
+        if (cell == null) {
+            return "";
+        }
+        switch (cell.getCellType()) {
+            case STRING: // 字符串类型
+                return cell.getStringCellValue();
+            case NUMERIC: // 数字类型
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    // 如果是日期类型，格式化为日期字符串
+                    return cell.getDateCellValue().toString();
+                } else {
+                    // 如果是数字类型，将其转换为非科学计数法的字符串
+                    return new BigDecimal(cell.getNumericCellValue()).toPlainString();
+                }
+            case BOOLEAN: // 布尔类型
+                return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA: // 公式类型
+                return cell.getCellFormula();
+            default: // 其他类型
+                return cell.toString();
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
+        readItemPropertyExcel2List("/Users/shenjiaxu/Desktop/实验室/知识图谱/KG_backend/src/main/resources/static/templateFile/template_property.xlsx");
     }
 }

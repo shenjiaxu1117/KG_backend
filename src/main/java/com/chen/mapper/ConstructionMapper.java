@@ -5,6 +5,7 @@ import com.chen.pojo.ItemTriple;
 import org.apache.ibatis.annotations.*;
 
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface ConstructionMapper {
@@ -34,6 +35,30 @@ public interface ConstructionMapper {
 
     @Select("SELECT * FROM relation_item WHERE relationid IN (SELECT id FROM relation WHERE graphid = #{graphId})")
     List<ItemTriple> findAllItemRelationByGraphId(int graphId);
+
+    @Insert("INSERT INTO item_property (itemid, propertyid, propertyvalue) VALUES (#{itemId}, #{propertyId}, #{propertyValue})")
+    void insert2ItemProperty(int itemId,int propertyId,String propertyValue);
+
+    @Select("SELECT COUNT(*)>0 FROM item_property WHERE itemid = #{itemId} AND propertyid = #{propertyId}")
+    boolean existItemProperty(int itemId,int propertyId);
+
+    @Select("SELECT propertyid FROM item_property WHERE itemid = #{itemId}")
+    List<Integer> getPropertyByItemId(int itemId);
+
+    /**
+     * 查询其指定实例的所有属性名和属性值
+     * @param itemId 实例id
+     * @return 格式如下
+     * [
+     *      {
+     *          name: 属性名1
+     *          value: 属性值1
+     *      },
+     *      ...
+     * ]
+     */
+    @Select("SELECT p.name AS name,ip.propertyvalue AS value FROM item_property ip JOIN property p ON ip.propertyid = p.id WHERE ip.itemid = #{itemId}")
+    List<Map<String, String>> getPropertyNameAndValueByItemId(int itemId);
 
     /* Entity */
 

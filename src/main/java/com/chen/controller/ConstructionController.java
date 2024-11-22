@@ -3,26 +3,23 @@ package com.chen.controller;
 import com.chen.config.CsvGenerator;
 import com.chen.config.Response;
 import com.chen.config.Utils;
+import com.chen.enums.DataType;
 import com.chen.enums.FileCategory;
 import com.chen.enums.TaskStatus;
+import com.chen.mapper.ConstructionMapper;
 import com.chen.pojo.*;
 import com.chen.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.stereotype.Service;
 
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Transaction;
-import org.neo4j.driver.internal.InternalNode;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.URLEncoder;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +31,9 @@ import java.util.Map;
 public class ConstructionController {
     @Autowired
     EntityService entityService;
+
+    @Autowired
+    PropertyService propertyService;
 
     @Autowired
     RelationService relationService;
@@ -55,8 +55,10 @@ public class ConstructionController {
 
     @Value("${files.upload.path}")
     private String fileUploadPath;
+    @Autowired
+    private ConstructionMapper constructionMapper;
 
-    /* Entity */
+    /*** Entity ***/
 
     @GetMapping("/getAllEntity")
     public Response getAllEntity(@RequestParam("graphId") int graphId) {
@@ -95,7 +97,38 @@ public class ConstructionController {
         }
     }
 
-    /* Relation */
+    /*** Property ***/
+
+    @GetMapping("/createProperty")
+    public Response createProperty(@RequestParam("name") String name, @RequestParam("type") DataType type,@RequestParam("unit") String unit,@RequestParam("entityId") int entityId){
+        String res= propertyService.createProperty(entityId,name,type,unit);
+        return Response.buildSuccess(res);
+    }
+
+    @GetMapping("/updatePropertyInfo")
+    public Response updateProperty(@RequestParam("id") int id, @RequestParam("name") String name, @RequestParam("type") DataType type,@RequestParam("unit") String unit,@RequestParam("entityId") int entityId){
+        String res= propertyService.updateProperty(entityId,id,name,type,unit);
+        if (res.equals("属性修改成功")){
+            return Response.buildSuccess();
+        }else{
+            return Response.buildFailure(res);
+        }
+    }
+
+    @GetMapping("/getEntityPropertyByGraphId")
+    public Response getEntityProperty(@RequestParam("graphId") int graphId){
+        List<Entity> entityList=entityService.getEntityList(graphId);
+        Map<Integer,List<Property>> map=new HashMap<>();
+        for (Entity entity:entityList){
+            List<Property> propertyList=propertyService.getPropertyListByEntityId(entity.getId());
+            map.put(entity.getId(),propertyList);
+        }
+        System.out.println("map: "+map);
+        return Response.buildSuccess(map);
+    }
+
+
+    /*** Relation ***/
 
     @GetMapping("/addRelation")
     public Response addRelation(@RequestParam("relation") String relationName, @RequestParam("startEntityId") int startEntityId, @RequestParam("endEntityId") int endEntityId, @RequestParam("graphId") int graphId){
@@ -153,11 +186,9 @@ public class ConstructionController {
         Task task=taskService.getTaskById(id);
         FileInfo file=fileService.getFileById(task.getSource());
         String filePath=System.getProperty("user.dir") + fileUploadPath + file.getName();
-
         if (file.getCategory().equals(FileCategory.entity)){
             //处理实体-实例表格
             Map<String, List<String>> entityItemMap= Utils.readEntityItemExcel2Map(filePath);
-
             for (Map.Entry<String, List<String>> entry : entityItemMap.entrySet()) {
                 String key = entry.getKey();                    // 键，实体
                 List<String> valueList = entry.getValue();      // 值，实例列表
@@ -169,12 +200,11 @@ public class ConstructionController {
                     }
                 }
             }
-        }else {
+        }else if (file.getCategory().equals(FileCategory.relation)){
             //处理实例-关系表格
             List<Map<String,String>> relationItemList=Utils.readRelationItemExcel2List(filePath);
             //获取关系设计中定义的实体和关系
             List<EntityTriple> tripleList=constructionService.getAllTripleId(task.getGraphId());
-
             for (Map<String,String> itemMap : relationItemList) {
                 System.out.println("================itemMap: "+itemMap);
                 Entity headEntity=entityService.getEntityByName(itemMap.get("headEntity"),task.getGraphId());
@@ -184,6 +214,19 @@ public class ConstructionController {
                     Item headItem=itemService.getItemByItemNameAndEntityId(itemMap.get("headItem"),headEntity.getId());
                     Item tailItem=itemService.getItemByItemNameAndEntityId(itemMap.get("tailItem"),tailEntity.getId());
                     constructionService.insertItemRelationTriple(headItem.getId(),tailItem.getId(),relation.getId());
+                }
+            }
+        }else{
+            //处理实例-属性表格
+            List<Map<String,String>> propertyMapList=Utils.readItemPropertyExcel2List(filePath);
+            for (Map<String,String> itemMap : propertyMapList) {
+                Entity entity=entityService.getEntityByName(itemMap.get("entityName"),task.getGraphId());
+                if (entity!=null){
+                    Item item=itemService.getItemByItemNameAndEntityId(itemMap.get("itemName"),entity.getId());
+                    Property property=propertyService.getPropertyByNameAndEntityId(itemMap.get("propertyName"),entity.getId());
+                    if (item!=null&&property!=null){
+                        constructionService.insertItemProperty(item.getId(),property.getId(),itemMap.get("propertyValue"));
+                    }
                 }
             }
         }
@@ -270,6 +313,19 @@ public class ConstructionController {
         return Response.buildSuccess(itemRelation);
     }
 
+    @GetMapping("/getAllItemProperty")
+    public Response getAllItemProperty(@RequestParam("graphId") int graphId){
+        List<Item> itemList=itemService.getItemByGraphId(graphId);
+        Map<Integer,List<Map<String,String>>> allItemProperty=new HashMap<>();
+        for (Item item:itemList){
+            List<Map<String,String>> propertyList=constructionService.getPropertyNameAndValue(item.getId());
+            allItemProperty.put(item.getId(),propertyList);
+        }
+        System.out.println("==========/getAllItemProperty: allItemProperty==========");
+        System.out.println(allItemProperty);
+        return Response.buildSuccess(allItemProperty);
+    }
+
     @Value("${files.csv.path}")
     private String csvPath;
 
@@ -308,9 +364,9 @@ public class ConstructionController {
     @GetMapping("/generateGraph")
     public Response generateGraph(@RequestParam("graphId") int graphId) throws IOException {
         //实例-关系三元组
-        //TODO：逻辑有问题，没有形成关系的实例没进数据库
         List<Item> itemList=itemService.getItemByGraphId(graphId);
         List<List<String>> itemEntity=new ArrayList<>();
+        List<List<String>> itemProperty=new ArrayList<>();
         for (Item item:itemList){
             List<String> eachItem=new ArrayList<>();
             Entity entity=entityService.getEntityById(item.getEntityId());
@@ -318,10 +374,21 @@ public class ConstructionController {
             eachItem.add(entity.getType());
             eachItem.add(item.getName());
             itemEntity.add(eachItem);
+            //property
+            List<Map<String, String>> propertyNameAndValue=constructionService.getPropertyNameAndValue(item.getId());
+            for(Map<String,String> itemMap:propertyNameAndValue){
+                String propertyName=itemMap.get("name");
+                String propertyValue=itemMap.get("value");
+                List<String> eachPropertyLine=new ArrayList<>();
+                eachPropertyLine.add(item.getId()+"");
+                eachPropertyLine.add(propertyName);
+                eachPropertyLine.add(propertyValue);
+                itemProperty.add(eachPropertyLine);
+            }
         }
         List<ItemTriple> tripleList=constructionService.getItemRelationTriple(graphId);
         List<List<String>> itemRelation=new ArrayList<>();
-        List<List<String>> itemProperty=new ArrayList<>();
+
         for (ItemTriple itemTriple:tripleList){
             Item headItem=itemService.getItemByItemId(itemTriple.getStartItem());
             Item tailItem=itemService.getItemByItemId(itemTriple.getEndItem());
@@ -343,7 +410,7 @@ public class ConstructionController {
         //生成csv
         CsvGenerator.generateCsv(List.of("node_name", "label_name", "name"),itemEntity,path,csv_itemEntity);
         CsvGenerator.generateCsv(List.of("head_node_name", "relation", "tail_node_name"),itemRelation,path,csv_relation);
-        CsvGenerator.generateCsv(List.of("node_name", "label_name", "property_name", "property_value"),itemProperty,path,csv_itemProperty);
+        CsvGenerator.generateCsv(List.of("node_name", "property_name", "property_value"),itemProperty,path,csv_itemProperty);
 //        Files.copy(Paths.get(path+csv_itemEntity), Paths.get(neo4jPath+csv_itemEntity), StandardCopyOption.REPLACE_EXISTING);
 //        Files.copy(Paths.get(path+csv_relation), Paths.get(neo4jPath+csv_relation), StandardCopyOption.REPLACE_EXISTING);
 //        Files.copy(Paths.get(path+csv_itemProperty), Paths.get(neo4jPath+csv_itemProperty), StandardCopyOption.REPLACE_EXISTING);
@@ -366,15 +433,15 @@ public class ConstructionController {
             //:TODO:cypherQuery3未debug
             String cypherQuery3 = String.format(
                     "LOAD CSV WITH HEADERS FROM 'file:///%s' AS row " +
-                            "MATCH (n:row.label_name {node_name: row.node_name})"+
-                            "SET n[row.property_name] = row.property_value",
-                    URLEncoder.encode(neo4jPath + csv_itemProperty, "UTF-8")
+                            "MATCH (n {node_name: row.node_name}) " +
+                            "SET n[row.property_name] = row.property_value ",
+                    URLEncoder.encode(path + csv_itemProperty, "UTF-8")
             );
             try (Transaction tx = session.beginTransaction()) {
                 tx.run(clearQuery);
                 tx.run(cypherQuery1);
                 tx.run(cypherQuery2);
-//                tx.run(cypherQuery3);
+                tx.run(cypherQuery3);
                 tx.commit();
             }
         }catch (Exception e) {

@@ -37,6 +37,9 @@ public class FileController {
     @Value("${files.upload.path}")
     private String fileUploadPath;
 
+    @Value("${files.template.path}")
+    private String fileTemplatePath;
+
     @CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*", allowCredentials = "true")
     @PostMapping("uploadFile")
     public Response uploadFile(@RequestParam("file") MultipartFile file, @RequestParam("graphID") int graphId, @RequestParam("category") FileCategory category) throws IOException {
@@ -196,7 +199,7 @@ public class FileController {
 
         // 创建 Zip 输出流
         try (ZipOutputStream zos = new ZipOutputStream(response.getOutputStream())) {
-            for (Integer fileId : fileIds) {
+            for (int fileId : fileIds) {
                 // 从数据库中查询文件信息
                 FileInfo fileInfo = fileService.getFileById(fileId);
                 String filePath = System.getProperty("user.dir") + fileUploadPath + fileInfo.getName();
@@ -206,6 +209,34 @@ public class FileController {
                     // 创建压缩条目
                     zos.putNextEntry(new ZipEntry(fileInfo.getName()));
 
+                    // 写入文件数据到压缩包
+                    byte[] buffer = new byte[1024];
+                    int len;
+                    while ((len = fis.read(buffer)) > 0) {
+                        zos.write(buffer, 0, len);
+                    }
+                    zos.closeEntry();
+                }
+            }
+            zos.finish(); // 完成压缩
+        }
+    }
+
+    @GetMapping("/downloadTemplateFiles")
+    public void downloadTemplateFiles(HttpServletResponse response) throws IOException{
+        // 设置返回的响应头
+        response.setContentType("application/zip");
+        response.setHeader("Content-Disposition", "attachment; filename=files.zip");
+        String[] fileName={"template_item.xlsx","template_relation.xlsx","template_property.xlsx"};
+        // 创建 Zip 输出流
+        try (ZipOutputStream zos = new ZipOutputStream(response.getOutputStream())) {
+            for (String eachFile : fileName) {
+                String filePath = System.getProperty("user.dir") + fileTemplatePath + eachFile;
+                System.out.println("filePath: "+filePath);
+                // 创建文件输入流
+                try (FileInputStream fis = new FileInputStream(new File(filePath))) {
+                    // 创建压缩条目
+                    zos.putNextEntry(new ZipEntry(eachFile));
                     // 写入文件数据到压缩包
                     byte[] buffer = new byte[1024];
                     int len;
