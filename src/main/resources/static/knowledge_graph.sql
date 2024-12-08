@@ -83,7 +83,7 @@ CREATE TABLE `file` (
     size VARCHAR(50) NOT NULL,            -- size 表示文件大小
     updatetime DATETIME NOT NULL,         -- updatetime 是时间格式，不允许为空
     graphid INT NOT NULL,
-    category ENUM('relation', 'entity', 'property') NOT NULL,
+    category ENUM('relation', 'entity', 'property','unstructured') NOT NULL,
     CONSTRAINT fk_graph FOREIGN KEY (graphid) REFERENCES graph(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 

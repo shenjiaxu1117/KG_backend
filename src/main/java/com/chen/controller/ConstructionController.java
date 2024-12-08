@@ -3,6 +3,7 @@ package com.chen.controller;
 import com.chen.config.CsvGenerator;
 import com.chen.config.Response;
 import com.chen.config.Utils;
+import com.chen.config.ZipExtractor;
 import com.chen.enums.DataType;
 import com.chen.enums.FileCategory;
 import com.chen.enums.TaskStatus;
@@ -17,13 +18,18 @@ import org.neo4j.driver.Driver;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Transaction;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
+import java.io.*;
 import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.Random;
 
 @RestController
 @CrossOrigin
@@ -455,6 +461,109 @@ public class ConstructionController {
             e.printStackTrace();
         }
 //        driver.close();
+        return Response.buildSuccess();
+    }
+
+    @Value("${files.unzip.path}")
+    private String unzipPath;
+
+    /***
+     * 调用kimiAPI对文件进行初步的实体、属性和关系归类抽取
+     * @param fileId 选择的非结构化文件
+     * @return 返回api抽取得到的结果，具体格式详见Utils.getAPIContent()
+     * @throws IOException 异常
+     */
+    @GetMapping("/useAPI")
+    public Response useApiGenerateEntity(@RequestParam("fileId") int fileId) throws IOException{
+        FileInfo fileInfo=fileService.getFileById(fileId);
+        String zipPath = System.getProperty("user.dir") + fileUploadPath + fileInfo.getName();
+        String unzipDirectory = System.getProperty("user.dir") + unzipPath;
+        String targetFilePath = ZipExtractor.randomUnzipFile(zipPath,unzipDirectory);
+
+        String line;
+        Map<String,Object> contentMap;
+        try {
+            // 定义 Python 脚本路径
+            String pythonScriptPath = System.getProperty("user.dir")+"/src/main/resources/program/LLMapi.py";
+            // 构建 ProcessBuilder
+            ProcessBuilder processBuilder = new ProcessBuilder("python", pythonScriptPath ,targetFilePath);
+            // 启动进程
+            Process process = processBuilder.start();
+
+            // 等待脚本执行完毕
+            int exitCode = process.waitFor();
+            System.out.println("Python script executed with exit code: " + exitCode);
+
+            // 获取 Python 脚本的标准输出
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            StringBuilder output = new StringBuilder();
+            // 获取 Python 脚本的错误输出流
+            InputStream errorStream = process.getErrorStream();
+            BufferedReader errorReader = new BufferedReader(new InputStreamReader(errorStream));
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+            }
+            // 读取错误输出
+            while ((line = errorReader.readLine()) != null) {
+                System.err.println("Python script error: " + line);
+            }
+
+            // 输出 Python 脚本返回的内容
+            String content = output.toString();
+            System.out.println("Content from Python script: ");
+            System.out.println(content);
+
+            if (!content.equals("")){
+                contentMap=Utils.getAPIContent(content);
+                System.out.println("=========> contentMap <=========");
+                System.out.println(contentMap);
+                return Response.buildSuccess(contentMap);
+            }
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+        return Response.buildFailure();
+    }
+
+    @PostMapping("/createMultiEntitiesAndProperties")
+    public Response createMultiEntity(@RequestBody Map<String,Object> config) {
+        List<Map<String,Object>> entityPropertyList = (List<Map<String, Object>>) config.get("entityList");
+        int graphId = Integer.parseInt(config.get("graphId").toString());
+        for (Map<String,Object> entityProperty : entityPropertyList) {
+            String entityName=entityProperty.get("entity").toString();
+            String createEntityResult="";
+            while((!createEntityResult.equals("实体名称已存在！"))&&(!createEntityResult.equals("create entity success"))){ //防止随机生成的颜色与已存在实体的颜色重复
+                createEntityResult=entityService.createEntity(entityName, Utils.randomColor(), graphId);
+            }
+            Entity entity=entityService.getEntityByName(entityName,graphId);
+            List<String> propertyList= (List<String>) entityProperty.get("property");
+            if(!propertyList.isEmpty()){
+                for(String propertyName:propertyList){
+                    DataType defaultDataType=DataType.string;
+                    String defaultUnit="无";
+                    String res= propertyService.createProperty(entity.getId(),propertyName,defaultDataType,defaultUnit);
+                }
+            }
+        }
+        return Response.buildSuccess();
+    }
+
+    @PostMapping("/createMultiRelations")
+    public Response createMultiRelations(@RequestBody Map<String,Object> config) {
+        List<Map<String,String>> relationList = (List<Map<String, String>>) config.get("relationList");
+        int graphId = Integer.parseInt(config.get("graphId").toString());
+        for (Map<String,String> eachRelation : relationList) {
+            String relationName=eachRelation.get("relation");
+            String headEntityName=eachRelation.get("headEntity");
+            String tailEntityName=eachRelation.get("tailEntity");
+            relationService.createRelation(relationName,graphId);
+            Relation relation=relationService.getRelationByName(relationName,graphId);
+            Entity headEntity=entityService.getEntityByName(headEntityName,graphId);
+            Entity tailEntity=entityService.getEntityByName(tailEntityName,graphId);
+            if (headEntity!=null && tailEntity!=null){
+                String res=constructionService.insertTriple(headEntity.getId(),relation.getId(),tailEntity.getId());
+            }
+        }
         return Response.buildSuccess();
     }
 }

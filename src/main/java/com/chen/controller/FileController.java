@@ -18,12 +18,13 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 @RestController
@@ -153,25 +154,52 @@ public class FileController {
         Path path = Paths.get(System.getProperty("user.dir") + fileUploadPath + fileInfo.getName());
         byte[] fileContent = Files.readAllBytes(path);
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).body(fileContent);
-//        try {
-//            Resource resource = new UrlResource(path.toUri());
-//            System.out.println(path.toUri());
-//            System.out.println("resource: "+resource);
-//            InputStream inputStream = resource.getInputStream();
-//            // 读取文件内容到字节数组
-//            byte[] data = StreamUtils.copyToByteArray(inputStream);
-            // 设置下载响应头
-//            HttpHeaders headers = new HttpHeaders();
-//            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"");
-//            // 返回自定义的 Response
-//            return Response.buildSuccess(resource);
-//        } catch (MalformedURLException e) {
-//            e.printStackTrace(); // 打印错误信息
-//        }
-//        catch (IOException e) {
-//            e.printStackTrace(); // 打印文件读取错误
-////        }
-//        return Response.buildFailure();
+    }
+
+    /**
+     * 处理非结构化上传的压缩文件，取出文件夹中所有文件的文件名和文件内容
+     * @param fileId 文件索引值
+     * @return 返回包含文件类型、文件名称和文件内容的map，具体格式如下：
+     * [
+     *      {
+     *          fileType:
+     *          fileName:
+     *          content://内容为String类型
+     *      },
+     *      ...
+     * ]
+     * @throws IOException 异常
+     */
+    @GetMapping("/fetchZipContent")
+    public Response fetchZip(@RequestParam("id") int fileId) throws IOException {
+        FileInfo fileInfo=fileService.getFileById(fileId);
+        Path zipFilePath = Paths.get(System.getProperty("user.dir") + fileUploadPath + fileInfo.getName());
+        // 解压 ZIP 文件
+        List<Map<String, Object>> fileContents = new ArrayList<>();
+        try (ZipInputStream zipInputStream = new ZipInputStream(Files.newInputStream(zipFilePath))) {
+            ZipEntry entry;
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                if (!entry.isDirectory()) {
+                    Map<String, Object> fileMap = new HashMap<>();
+                    String[] fileName = entry.getName().split("/");
+                    if (fileName.length==2){
+                        fileMap.put("fileType", fileName[0]);
+                        fileMap.put("fileName", fileName[1]);
+                        // 读取每个文件的内容
+                        byte[] content = zipInputStream.readAllBytes();
+//                        String encodedContent = Base64.getEncoder().encodeToString(content);
+                        String contentStr = new String(content, StandardCharsets.UTF_8);  // 将字节数组转换为字符串
+                        fileMap.put("content", contentStr);  // 返回文件内容，可以选择返回 String 或 Base64 编码后的内容
+                        fileContents.add(fileMap);
+                    }
+                }
+                zipInputStream.closeEntry();
+            }
+        }
+        // 返回包含每个文件名和内容的列表
+//        System.out.println("==========> fileContents <==========");
+//        System.out.println(fileContents);
+        return Response.buildSuccess(fileContents);
     }
 
     @GetMapping("/downloadFile")

@@ -1,5 +1,6 @@
 package com.chen.config;
 
+import cn.hutool.core.collection.CollectionUtil;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Component;
@@ -10,12 +11,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-import static cn.hutool.poi.excel.cell.CellUtil.getCellValue;
 
 @Component
 public class Utils {
@@ -320,8 +317,137 @@ public class Utils {
         }
     }
 
+    /***
+     * 对llm返回的语句进行结构化处理，得到所需要的实体、属性和关系内容
+     * @param content llm输出内容
+     * @return 格式如下：
+     * {
+     *     entity:[
+     *          {
+     *              entity:实体1
+     *              property:[属性1，属性2...]
+     *          },
+     *          {
+     *              entity:实体2
+     *              property:[属性1，属性2...]
+     *          },
+     *          ...
+     *     ]
+     *     relation:[
+     *          {
+     *              headEntity:头实体
+     *              relation:关系
+     *              tailEntity:尾实体
+     *          },
+     *          {
+     *              headEntity:头实体
+     *              relation:关系
+     *              tailEntity:尾实体
+     *          },
+     *          ...
+     *     ]
+     * }
+     */
+    public static Map<String,Object> getAPIContent(String content) {
+        List<String> contentList= new ArrayList<>(Arrays.asList(content.split("\n")));
+        CollectionUtil.removeEmpty(contentList);
+        int relationIndex=0;
+        for (int i=0;i<contentList.size();i++) {
+            if (contentList.get(i).equals("实体之间的关系：")){
+                relationIndex=i;
+                break;
+            }
+        }
+        List<String> entityList=contentList.subList(1,relationIndex);
+        List<String> relationList=contentList.subList(relationIndex+1,contentList.size());
+        System.out.println("==========> entityList:"+entityList);
+        System.out.println("==========> relationList:"+relationList);
+        List<Map<String,Object>> entityPropertyList=new ArrayList<>();
+        //处理实体和属性
+        for (int i=0;i<entityList.size();i++) {
+            // 使用正则表达式进行分割，按中文括号（）、逗号（、）进行分割
+            List<String> list = new ArrayList<>(Arrays.asList(entityList.get(i).split("[（）、]+")));
+            String entity=list.get(0);
+            if (list.size()>1){
+                list=list.subList(1,list.size());
+                CollectionUtil.removeEmpty(list);
+                if ((!list.isEmpty()) && (!containsEntity(entityPropertyList,entity))){
+                    Map<String,Object> map=new HashMap<>();
+                    map.put("entity",entity);
+                    map.put("property",list);
+                    entityPropertyList.add(map);
+                }
+            }else{
+                if ((!entity.equals("实体类型：")) && (!containsEntity(entityPropertyList,entity))){
+                    Map<String,Object> map=new HashMap<>();
+                    map.put("entity",entity);
+                    map.put("property",new ArrayList<>());
+                    entityPropertyList.add(map);
+                }
+            }
+        }
+        //处理实体之间的关系
+        List<Map<String,String>> relationTripleList=new ArrayList<>();
+        for (int i=0;i<relationList.size();i++) {
+            List<String> list = new ArrayList<>(Arrays.asList(relationList.get(i).split("-")));
+            if (list.size()==3){
+                Map<String,String> relationMap=new HashMap<>();
+                relationMap.put("headEntity",list.get(0));
+                relationMap.put("relation",list.get(1));
+                relationMap.put("tailEntity",list.get(2));
+                relationTripleList.add(relationMap);
+            }
+        }
+        Map<String,Object> resultMap=new HashMap<>();
+        resultMap.put("entity",entityPropertyList);
+        resultMap.put("relation",relationTripleList);
+        return resultMap;
+    }
+
+    /***
+     * getAPIContent内部工具，判断实体是否已在处理好的列表中
+     * @param entityList 实体及其属性的结构化列表
+     * @param entity 实体名称
+     * @return 需要处理的实体是否重复
+     */
+    private static boolean containsEntity(List<Map<String,Object>> entityList,String entity){
+        boolean flag = false;
+        for (Map<String,Object> map:entityList) {
+            if (map.get("entity").equals(entity)){
+                flag = true;
+                break;
+            }
+        }
+        return flag;
+    }
+
+    /***
+     * 随机生成颜色
+     * @return 颜色的6位16进制表示法
+     */
+    public static String randomColor(){
+        // 创建随机数生成器
+        Random random = new Random();
+
+        // 随机生成红、绿、蓝的16进制值
+        String red = Integer.toHexString(random.nextInt(256));  // 随机生成0-255之间的整数，并转为16进制
+        String green = Integer.toHexString(random.nextInt(256));
+        String blue = Integer.toHexString(random.nextInt(256));
+
+        // 如果生成的颜色值只有1位，则在前面补0
+        red = (red.length() == 1) ? "0" + red : red;
+        green = (green.length() == 1) ? "0" + green : green;
+        blue = (blue.length() == 1) ? "0" + blue : blue;
+
+        // 拼接颜色代码并输出
+        String randomColor = "#" + red.toUpperCase() + green.toUpperCase() + blue.toUpperCase();
+//        System.out.println("随机颜色: " + randomColor);
+        return randomColor;
+    }
+
     public static void main(String[] args) throws IOException {
-        readEntityItemExcel2Map("/Users/shenjiaxu/Desktop/实验室/知识图谱/数据集/司法/副本patch1-entity.xlsx");
+        String color = randomColor();
+        //readEntityItemExcel2Map("/Users/shenjiaxu/Desktop/实验室/知识图谱/数据集/司法/副本patch1-entity.xlsx");
         //readRelationItemExcel2List("/Users/shenjiaxu/Desktop/实验室/知识图谱/数据集/司法/副本patch1-relation.xlsx");
         //readItemPropertyExcel2List("/Users/shenjiaxu/Desktop/实验室/知识图谱/KG_backend/src/main/resources/static/templateFile/template_property.xlsx");
     }
